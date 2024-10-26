@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>For You ❤️</title>
+    <title>The Book Of You ❤️</title>
     <style>
         * {
             margin: 0;
@@ -16,7 +16,6 @@
             height: 100vh;
             overflow: hidden;
             perspective: 2000px;
-            touch-action: none;
         }
 
         .book-container {
@@ -211,10 +210,8 @@
         let pages = [];
         let touchStartTime = 0;
         let touchStartX = 0;
-        let touchStartY = 0;
         let currentTouchX = 0;
         let isSwiping = false;
-        let swipeDirection = null;
 
         // Create pages
         function createPages() {
@@ -299,18 +296,6 @@
             }
         }
 
-        function resetPages() {
-            const currentPageElement = pages[currentPage];
-            const prevPageElement = pages[currentPage - 1];
-            
-            if (currentPageElement) {
-                currentPageElement.style.transform = '';
-            }
-            if (prevPageElement) {
-                prevPageElement.style.transform = 'rotateY(-180deg)';
-            }
-        }
-
         // Enhanced music handling
         let musicInitialized = false;
 
@@ -324,9 +309,11 @@
             }
         }
 
+        // Multiple attempts to start music
         function attemptPlayMusic() {
             if (!musicInitialized) {
                 initMusic().catch(() => {
+                    // Retry after a short delay
                     setTimeout(initMusic, 1000);
                 });
             }
@@ -354,103 +341,48 @@
         // Enhanced touch handling
         container.addEventListener('touchstart', (e) => {
             if (isAnimating) return;
-            
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-            currentTouchX = touchStartX;
             touchStartTime = Date.now();
+            touchStartX = e.touches[0].clientX;
+            currentTouchX = touchStartX;
             isSwiping = true;
-            swipeDirection = null;
-            
-            // Reset any existing transforms
-            pages.forEach(page => {
-                page.style.transition = 'none';
-                if (!page.classList.contains('flipped')) {
-                    page.style.transform = '';
-                }
-            });
-
             attemptPlayMusic();
         }, { passive: true });
 
         container.addEventListener('touchmove', (e) => {
             if (!isSwiping) return;
+            currentTouchX = e.touches[0].clientX;
+            const deltaX = currentTouchX - touchStartX;
             
-            const touchX = e.touches[0].clientX;
-            const touchY = e.touches[0].clientY;
-            const deltaX = touchX - touchStartX;
-            const deltaY = touchY - touchStartY;
-            currentTouchX = touchX;
-
-            // Determine swipe direction if not yet set
-            if (!swipeDirection) {
-                if (Math.abs(deltaX) > Math.abs(deltaY)) {
-                    swipeDirection = 'horizontal';
-                } else {
-                    swipeDirection = 'vertical';
-                }
+            // Apply real-time rotation based on swipe
+            const currentPageElement = pages[currentPage];
+            if (currentPageElement) {
+                const rotation = Math.min(Math.max(deltaX / window.innerWidth * -180, -180), 0);
+                currentPageElement.style.transform = `rotateY(${rotation}deg)`;
             }
-
-            // Only handle horizontal swipes
-            if (swipeDirection === 'horizontal') {
-                e.preventDefault();
-
-                const currentPageElement = pages[currentPage];
-                const nextPageElement = pages[currentPage + 1];
-                const prevPageElement = pages[currentPage - 1];
-
-                // Calculate rotation based on swipe distance
-                const swipePercent = deltaX / window.innerWidth;
-                const rotation = swipePercent * -180;
-
-                if (deltaX < 0 && currentPage < totalPages - 1) {
-                    // Swiping forward
-                    if (currentPageElement) {
-                        currentPageElement.style.transition = 'none';
-                        currentPageElement.style.transform = `rotateY(${rotation}deg)`;
-                    }
-                } else if (deltaX > 0 && currentPage > 0) {
-                    // Swiping backward
-                    if (prevPageElement) {
-                        prevPageElement.style.transition = 'none';
-                        prevPageElement.style.transform = `rotateY(${-180 + rotation}deg)`;
-                    }
-                }
-            }
-        }, { passive: false });
+        }, { passive: true });
 
         container.addEventListener('touchend', (e) => {
             if (!isSwiping) return;
+            isSwiping = false;
             
             const touchEndX = e.changedTouches[0].clientX;
             const deltaX = touchStartX - touchEndX;
             const touchDuration = Date.now() - touchStartTime;
             const velocity = Math.abs(deltaX) / touchDuration;
-
-            // Reset transitions
-            pages.forEach(page => {
-                page.style.transition = 'transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1)';
-            });
-
-            if (swipeDirection === 'horizontal') {
-                const swipeThreshold = window.innerWidth * 0.25; // 25% of screen width
-                const velocityThreshold = 0.5; // pixels per millisecond
-
-                if (Math.abs(deltaX) > swipeThreshold || velocity > velocityThreshold) {
-                    if (deltaX > 0 && currentPage > 0) {
-                        previousPage();
-                    } else if (deltaX < 0 && currentPage < totalPages - 1) {
-                        nextPage();
-                    } else {
-                        resetPages();
-                    }
+            
+            if (Math.abs(deltaX) > 50 || velocity > 0.5) {
+                if (deltaX > 0) {
+                    nextPage();
                 } else {
-                    resetPages();
+                    previousPage();
+                }
+            } else {
+                // Reset page position if swipe wasn't far enough
+                const currentPageElement = pages[currentPage];
+                if (currentPageElement) {
+                    currentPageElement.style.transform = '';
                 }
             }
-
-            isSwiping = false;
-            swipeDirection = null;
         }, { passive: true });
 
         // Auto-start music attempts
