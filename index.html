@@ -25,6 +25,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            animation: fadeIn 1s ease-out;
         }
 
         .page {
@@ -60,33 +61,13 @@
             object-fit: contain;
             pointer-events: none;
             user-select: none;
-            -webkit-user-select: none;
         }
 
         .page.flipped {
             transform: rotateY(-180deg);
         }
 
-        /* Enhanced page turn effect */
-        .page.turning-forward {
-            animation: turnPageForward 0.8s cubic-bezier(0.645, 0.045, 0.355, 1) forwards;
-        }
-
-        .page.turning-backward {
-            animation: turnPageBackward 0.8s cubic-bezier(0.645, 0.045, 0.355, 1) forwards;
-        }
-
-        @keyframes turnPageForward {
-            0% { transform: rotateY(0); }
-            100% { transform: rotateY(-180deg); }
-        }
-
-        @keyframes turnPageBackward {
-            0% { transform: rotateY(-180deg); }
-            100% { transform: rotateY(0); }
-        }
-
-        /* Page shadow effects */
+        /* Page Shadow Effect */
         .page::after {
             content: '';
             position: absolute;
@@ -163,21 +144,9 @@
             justify-content: center;
         }
 
-        /* Initial page load animation */
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
-        }
-
-        .book-container {
-            animation: fadeIn 1s ease-out;
-        }
-
-        @media (orientation: landscape) {
-            .book-container {
-                max-width: 56.25vh;
-                margin: auto;
-            }
         }
     </style>
 </head>
@@ -208,12 +177,8 @@
         const musicBtn = document.getElementById('musicBtn');
         let isAnimating = false;
         let pages = [];
-        let touchStartTime = 0;
-        let touchStartX = 0;
-        let currentTouchX = 0;
         let isSwiping = false;
 
-        // Create pages
         function createPages() {
             container.innerHTML = '';
             
@@ -296,7 +261,7 @@
             }
         }
 
-        // Enhanced music handling
+        // Music handling
         let musicInitialized = false;
 
         async function initMusic() {
@@ -309,13 +274,9 @@
             }
         }
 
-        // Multiple attempts to start music
         function attemptPlayMusic() {
             if (!musicInitialized) {
-                initMusic().catch(() => {
-                    // Retry after a short delay
-                    setTimeout(initMusic, 1000);
-                });
+                initMusic().catch(() => setTimeout(initMusic, 1000));
             }
         }
 
@@ -338,67 +299,35 @@
             }
         }
 
-        // Enhanced touch handling
         container.addEventListener('touchstart', (e) => {
             if (isAnimating) return;
-            touchStartTime = Date.now();
-            touchStartX = e.touches[0].clientX;
-            currentTouchX = touchStartX;
+            const touchStartX = e.touches[0].clientX;
             isSwiping = true;
-            attemptPlayMusic();
-        }, { passive: true });
 
-        container.addEventListener('touchmove', (e) => {
-            if (!isSwiping) return;
-            currentTouchX = e.touches[0].clientX;
-            const deltaX = currentTouchX - touchStartX;
-            
-            // Apply real-time rotation based on swipe
-            const currentPageElement = pages[currentPage];
-            if (currentPageElement) {
-                const rotation = Math.min(Math.max(deltaX / window.innerWidth * -180, -180), 0);
-                currentPageElement.style.transform = `rotateY(${rotation}deg)`;
-            }
-        }, { passive: true });
+            container.addEventListener('touchend', (e) => {
+                if (isSwiping) {
+                    const touchEndX = e.changedTouches[0].clientX;
+                    const swipeThreshold = 30;
+                    const swipeDistance = touchEndX - touchStartX;
 
-        container.addEventListener('touchend', (e) => {
-            if (!isSwiping) return;
-            isSwiping = false;
-            
-            const touchEndX = e.changedTouches[0].clientX;
-            const deltaX = touchStartX - touchEndX;
-            const touchDuration = Date.now() - touchStartTime;
-            const velocity = Math.abs(deltaX) / touchDuration;
-            
-            if (Math.abs(deltaX) > 50 || velocity > 0.5) {
-                if (deltaX > 0) {
-                    nextPage();
-                } else {
-                    previousPage();
+                    if (Math.abs(swipeDistance) > swipeThreshold) {
+                        if (swipeDistance < 0) {
+                            nextPage();
+                        } else {
+                            previousPage();
+                        }
+                    }
                 }
-            } else {
-                // Reset page position if swipe wasn't far enough
-                const currentPageElement = pages[currentPage];
-                if (currentPageElement) {
-                    currentPageElement.style.transform = '';
-                }
-            }
-        }, { passive: true });
-
-        // Auto-start music attempts
-        window.addEventListener('load', attemptPlayMusic);
-        document.addEventListener('click', attemptPlayMusic);
-        document.addEventListener('touchstart', attemptPlayMusic, { once: true });
-        document.addEventListener('keydown', attemptPlayMusic, { once: true });
-
-        // Keyboard navigation
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowRight' || e.key === ' ') nextPage();
-            if (e.key === 'ArrowLeft') previousPage();
+                isSwiping = false;
+            }, { once: true });
         });
 
-        // Initialize
+        // Initialize book pages
         createPages();
+
+        // Auto-play music on interaction
+        document.addEventListener('click', attemptPlayMusic);
+        document.addEventListener('touchstart', attemptPlayMusic);
     </script>
 </body>
 </html>
