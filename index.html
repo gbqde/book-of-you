@@ -25,7 +25,6 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            animation: fadeIn 1s ease-out;
         }
 
         .page {
@@ -55,26 +54,30 @@
             transform: rotateY(180deg);
         }
 
+        .page img {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            user-select: none;
+        }
+
         .page.flipped {
             transform: rotateY(-180deg);
         }
 
-        /* Page Shadow Effect */
-        .page::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            left: 0;
-            background: linear-gradient(to right, rgba(0,0,0,0.2), transparent);
-            opacity: 0;
-            transition: opacity 0.4s;
-            pointer-events: none;
+        /* Page turn effect */
+        .page.turning-forward {
+            animation: turnPageForward 0.8s cubic-bezier(0.645, 0.045, 0.355, 1) forwards;
         }
 
-        .page.turning-backward::after {
-            opacity: 1;
+        .page.turning-backward {
+            animation: none; /* Disable backward animation */
+        }
+
+        @keyframes turnPageForward {
+            0% { transform: rotateY(0); }
+            100% { transform: rotateY(-180deg); }
         }
 
         .nav-buttons {
@@ -106,38 +109,10 @@
             left: 50%;
             transform: translateX(-50%);
             color: white;
-            font-family: Arial, sans-serif;
             background: rgba(0,0,0,0.5);
             padding: 5px 15px;
             border-radius: 15px;
             z-index: 1000;
-        }
-
-        .music-controls {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-        }
-
-        .music-button {
-            background: rgba(255,255,255,0.3);
-            color: white;
-            border: none;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 20px;
-            backdrop-filter: blur(5px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
         }
     </style>
 </head>
@@ -151,25 +126,15 @@
 
     <div class="page-indicator">1 / 26</div>
 
-    <div class="music-controls">
-        <button class="music-button" onclick="toggleMusic()" id="musicBtn">♪</button>
-    </div>
-
-    <audio id="bgMusic" loop preload="auto">
-        <source src="background-music.mp3" type="audio/mp3">
-    </audio>
-
     <script>
         let currentPage = 0;
         const totalPages = 26;
         const container = document.getElementById('bookContainer');
         const pageIndicator = document.querySelector('.page-indicator');
-        const audio = document.getElementById('bgMusic');
-        const musicBtn = document.getElementById('musicBtn');
         let isAnimating = false;
         let pages = [];
-        let isSwiping = false;
 
+        // Create pages
         function createPages() {
             container.innerHTML = '';
             
@@ -201,7 +166,7 @@
 
         function updatePages() {
             pages.forEach((page, index) => {
-                page.classList.remove('turning-backward');
+                page.classList.remove('turning-forward');
                 if (index < currentPage) {
                     page.classList.add('flipped');
                 } else {
@@ -214,19 +179,16 @@
         }
 
         function turnPage(direction) {
-            const page = pages[direction === 'backward' ? currentPage - 1 : currentPage];
-            if (page && direction === 'backward') {
-                page.classList.add('turning-backward');
-                setTimeout(() => {
-                    page.classList.remove('turning-backward');
-                    page.classList.remove('flipped');
-                }, 800);
+            const page = pages[direction === 'forward' ? currentPage : currentPage - 1];
+            if (page) {
+                page.classList.add(direction === 'forward' ? 'turning-forward' : 'flipped');
             }
         }
 
         function nextPage() {
             if (currentPage < totalPages - 1 && !isAnimating) {
                 isAnimating = true;
+                turnPage('forward');
                 currentPage++;
                 updatePages();
                 setTimeout(() => {
@@ -238,7 +200,6 @@
         function previousPage() {
             if (currentPage > 0 && !isAnimating) {
                 isAnimating = true;
-                turnPage('backward');
                 currentPage--;
                 updatePages();
                 setTimeout(() => {
@@ -247,73 +208,7 @@
             }
         }
 
-        // Music handling
-        let musicInitialized = false;
-
-        async function initMusic() {
-            try {
-                await audio.play();
-                musicInitialized = true;
-                musicBtn.innerHTML = '♫';
-            } catch (err) {
-                console.log('Music initialization failed:', err);
-            }
-        }
-
-        function attemptPlayMusic() {
-            if (!musicInitialized) {
-                initMusic().catch(() => setTimeout(initMusic, 1000));
-            }
-        }
-
-        async function toggleMusic() {
-            if (!musicInitialized) {
-                attemptPlayMusic();
-            } else {
-                if (audio.paused) {
-                    try {
-                        await audio.play();
-                        musicBtn.innerHTML = '♫';
-                    } catch (err) {
-                        console.log('Music play failed:', err);
-                        musicBtn.innerHTML = '♪';
-                    }
-                } else {
-                    audio.pause();
-                    musicBtn.innerHTML = '♪';
-                }
-            }
-        }
-
-        container.addEventListener('touchstart', (e) => {
-            if (isAnimating) return;
-            const touchStartX = e.touches[0].clientX;
-            isSwiping = true;
-
-            container.addEventListener('touchend', (e) => {
-                if (isSwiping) {
-                    const touchEndX = e.changedTouches[0].clientX;
-                    const swipeThreshold = 30;
-                    const swipeDistance = touchEndX - touchStartX;
-
-                    if (Math.abs(swipeDistance) > swipeThreshold) {
-                        if (swipeDistance < 0) {
-                            nextPage();
-                        } else {
-                            previousPage();
-                        }
-                    }
-                }
-                isSwiping = false;
-            }, { once: true });
-        });
-
-        // Initialize book pages
         createPages();
-
-        // Auto-play music on interaction
-        document.addEventListener('click', attemptPlayMusic);
-        document.addEventListener('touchstart', attemptPlayMusic);
     </script>
 </body>
 </html>
