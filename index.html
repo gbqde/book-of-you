@@ -73,7 +73,6 @@
             pointer-events: none;
         }
 
-        .page.turning-forward::after,
         .page.turning-backward::after {
             opacity: 1;
         }
@@ -202,7 +201,7 @@
 
         function updatePages() {
             pages.forEach((page, index) => {
-                page.classList.remove('turning-forward', 'turning-backward');
+                page.classList.remove('turning-backward');
                 if (index < currentPage) {
                     page.classList.add('flipped');
                 } else {
@@ -215,16 +214,12 @@
         }
 
         function turnPage(direction) {
-            const page = pages[direction === 'forward' ? currentPage : currentPage - 1];
-            if (page) {
-                page.classList.add(direction === 'forward' ? 'turning-forward' : 'turning-backward');
+            const page = pages[direction === 'backward' ? currentPage - 1 : currentPage];
+            if (page && direction === 'backward') {
+                page.classList.add('turning-backward');
                 setTimeout(() => {
-                    page.classList.remove('turning-forward', 'turning-backward');
-                    if (direction === 'forward') {
-                        page.classList.add('flipped');
-                    } else {
-                        page.classList.remove('flipped');
-                    }
+                    page.classList.remove('turning-backward');
+                    page.classList.remove('flipped');
                 }, 800);
             }
         }
@@ -232,7 +227,6 @@
         function nextPage() {
             if (currentPage < totalPages - 1 && !isAnimating) {
                 isAnimating = true;
-                turnPage('forward');
                 currentPage++;
                 updatePages();
                 setTimeout(() => {
